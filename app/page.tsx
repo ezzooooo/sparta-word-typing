@@ -40,6 +40,7 @@ export default function Home() {
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
+  const [completedAt, setCompletedAt] = useState<Date | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const isTransitioningRef = useRef(false);
@@ -71,6 +72,7 @@ export default function Home() {
         setIsCorrect(null);
         setTimeLeft(timeLimit);
       } else {
+        setCompletedAt(new Date());
         setPhase("result");
       }
       isTransitioningRef.current = false;
@@ -360,7 +362,7 @@ export default function Home() {
           <div className="text-slate-400 mt-2">/ 12점</div>
         </div>
 
-        <div className="mb-6 p-4 bg-slate-700/30 rounded-lg">
+        <div className="mb-6 p-4 bg-slate-700/30 rounded-lg space-y-2">
           <span
             className={`inline-block px-4 py-2 rounded-full text-sm font-medium ${
               classType === "core"
@@ -370,6 +372,18 @@ export default function Home() {
           >
             {classType === "core" ? "Core (4초)" : "Advanced (2초)"}
           </span>
+          {completedAt && (
+            <div className="text-slate-400 text-sm">
+              {completedAt.toLocaleString("ko-KR", {
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+              })}
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-3">
