@@ -49,7 +49,11 @@ export default function Home() {
   // 개발 모드 전용 상태
   const [devTotalTyped, setDevTotalTyped] = useState(0);
   const [devStartTime, setDevStartTime] = useState<Date | null>(null);
+  const [devWordStartTime, setDevWordStartTime] = useState<Date | null>(null);
+  const [devWPMHistory, setDevWPMHistory] = useState<number[]>([]);
+  const [devElapsedSeconds, setDevElapsedSeconds] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const devTimerRef = useRef<NodeJS.Timeout | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const isTransitioningRef = useRef(false);
 
@@ -88,10 +92,26 @@ export default function Home() {
     }, 300);
   };
 
+  // 타자 속도 계산 함수 (분당 글자 수)
+  const calculateSpeed = (wordLength: number, timeMs: number): number => {
+    if (timeMs <= 0) return 0;
+    const minutes = timeMs / 60000;
+    return Math.round(wordLength / minutes);
+  };
+
   // 개발 모드 전용: 다음 단어로 이동 (무한 반복)
   const moveToNextDev = () => {
     if (isTransitioningRef.current) return;
     isTransitioningRef.current = true;
+
+    // 타자 속도 계산
+    if (devWordStartTime && currentWord) {
+      const typingTime = Date.now() - devWordStartTime.getTime();
+      const speed = calculateSpeed(currentWord.length, typingTime);
+      if (speed > 0 && speed < 2000) { // 비정상적인 값 필터링
+        setDevWPMHistory((prev) => [...prev, speed]);
+      }
+    }
 
     setIsCorrect(true);
     setDevTotalTyped((prev) => prev + 1);
@@ -106,6 +126,7 @@ export default function Home() {
       }
       setInput("");
       setIsCorrect(null);
+      setDevWordStartTime(null); // 첫 글자 입력 시 설정됨
       isTransitioningRef.current = false;
       inputRef.current?.focus();
     }, 100);
@@ -122,6 +143,9 @@ export default function Home() {
       setWords(shuffleArray(DEV_WORDS));
       setDevTotalTyped(0);
       setDevStartTime(new Date());
+      setDevWordStartTime(null); // 첫 글자 입력 시 설정됨
+      setDevWPMHistory([]);
+      setDevElapsedSeconds(0);
     }
 
     setCurrentIndex(0);
@@ -137,6 +161,11 @@ export default function Home() {
     const value = e.target.value;
     setInput(value);
 
+    // 개발 모드: 첫 글자 입력 시 시간 측정 시작
+    if (gameMode === "dev" && input === "" && value.length === 1) {
+      setDevWordStartTime(new Date());
+    }
+
     if (value === currentWord) {
       if (gameMode === "sparta") {
         moveToNextSparta(true);
@@ -146,8 +175,16 @@ export default function Home() {
     }
   };
 
+  const clearDevTimer = () => {
+    if (devTimerRef.current) {
+      clearInterval(devTimerRef.current);
+      devTimerRef.current = null;
+    }
+  };
+
   const resetGame = () => {
     clearTimer();
+    clearDevTimer();
     isTransitioningRef.current = false;
     setPhase("start");
     setName("");
@@ -158,10 +195,14 @@ export default function Home() {
     setIsCorrect(null);
     setDevTotalTyped(0);
     setDevStartTime(null);
+    setDevWordStartTime(null);
+    setDevWPMHistory([]);
+    setDevElapsedSeconds(0);
   };
 
   const stopDevPractice = () => {
     clearTimer();
+    clearDevTimer();
     setPhase("start");
   };
 
@@ -196,6 +237,22 @@ export default function Home() {
       inputRef.current?.focus();
     }
   }, [phase, gameMode, currentIndex]);
+
+  // 개발 모드 경과 시간 타이머
+  useEffect(() => {
+    if (phase === "playing" && gameMode === "dev" && devStartTime) {
+      devTimerRef.current = setInterval(() => {
+        setDevElapsedSeconds(Math.floor((Date.now() - devStartTime.getTime()) / 1000));
+      }, 1000);
+
+      return () => {
+        if (devTimerRef.current) {
+          clearInterval(devTimerRef.current);
+          devTimerRef.current = null;
+        }
+      };
+    }
+  }, [phase, gameMode, devStartTime]);
 
   if (phase === "start") {
     return (
@@ -464,11 +521,16 @@ export default function Home() {
 
   // 개발 단어 연습 모드 (무한 반복)
   if (phase === "playing" && gameMode === "dev") {
-    const elapsedSeconds = devStartTime
-      ? Math.floor((Date.now() - devStartTime.getTime()) / 1000)
+    const minutes = Math.floor(devElapsedSeconds / 60);
+    const seconds = devElapsedSeconds % 60;
+
+    // 타자 속도 통계 계산 (분당 글자 수)
+    const currentSpeed = devWPMHistory.length > 0 ? devWPMHistory[devWPMHistory.length - 1] : 0;
+    const maxSpeed = devWPMHistory.length > 0 ? Math.max(...devWPMHistory) : 0;
+    const minSpeed = devWPMHistory.length > 0 ? Math.min(...devWPMHistory) : 0;
+    const avgSpeed = devWPMHistory.length > 0
+      ? Math.round(devWPMHistory.reduce((a, b) => a + b, 0) / devWPMHistory.length)
       : 0;
-    const minutes = Math.floor(elapsedSeconds / 60);
-    const seconds = elapsedSeconds % 60;
 
     return (
       <main className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-900 to-slate-800">
@@ -484,13 +546,37 @@ export default function Home() {
           </div>
 
           <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-8 shadow-2xl border border-slate-700">
-            <div className="flex justify-between items-center mb-8">
+            <div className="flex justify-between items-center mb-4">
               <div className="text-slate-400">
                 <span className="text-2xl font-bold text-green-400">{devTotalTyped}</span>
                 <span className="ml-1">단어</span>
               </div>
               <div className="text-slate-400 font-mono">
                 {minutes.toString().padStart(2, "0")}:{seconds.toString().padStart(2, "0")}
+              </div>
+            </div>
+
+            {/* 타자 속도 통계 */}
+            <div className="grid grid-cols-4 gap-3 mb-6">
+              <div className="bg-slate-700/50 rounded-lg p-3 text-center">
+                <div className="text-xs text-slate-400 mb-1">현재 속도</div>
+                <div className="text-xl font-bold text-white">{currentSpeed}</div>
+                <div className="text-xs text-slate-500">타/분</div>
+              </div>
+              <div className="bg-slate-700/50 rounded-lg p-3 text-center">
+                <div className="text-xs text-slate-400 mb-1">최고 속도</div>
+                <div className="text-xl font-bold text-green-400">{maxSpeed}</div>
+                <div className="text-xs text-slate-500">타/분</div>
+              </div>
+              <div className="bg-slate-700/50 rounded-lg p-3 text-center">
+                <div className="text-xs text-slate-400 mb-1">평균 속도</div>
+                <div className="text-xl font-bold text-blue-400">{avgSpeed}</div>
+                <div className="text-xs text-slate-500">타/분</div>
+              </div>
+              <div className="bg-slate-700/50 rounded-lg p-3 text-center">
+                <div className="text-xs text-slate-400 mb-1">최저 속도</div>
+                <div className="text-xl font-bold text-orange-400">{minSpeed}</div>
+                <div className="text-xs text-slate-500">타/분</div>
               </div>
             </div>
 
