@@ -3,6 +3,145 @@
 import { useState, useEffect, useRef } from "react";
 import { DEV_WORDS } from "./dev-words";
 
+// 키보드 레이아웃 정의
+const KEYBOARD_ROWS = [
+  ["`", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "="],
+  ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "[", "]", "\\"],
+  ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";", "'"],
+  ["z", "x", "c", "v", "b", "n", "m", ",", ".", "/"],
+];
+
+// 손가락 매핑 (어떤 손가락으로 누를지)
+type FingerType = "pinky-l" | "ring-l" | "middle-l" | "index-l" | "index-r" | "middle-r" | "ring-r" | "pinky-r";
+
+const KEY_TO_FINGER: Record<string, FingerType> = {
+  // 왼손 새끼
+  "`": "pinky-l", "1": "pinky-l", "q": "pinky-l", "a": "pinky-l", "z": "pinky-l",
+  // 왼손 약지
+  "2": "ring-l", "w": "ring-l", "s": "ring-l", "x": "ring-l",
+  // 왼손 중지
+  "3": "middle-l", "e": "middle-l", "d": "middle-l", "c": "middle-l",
+  // 왼손 검지
+  "4": "index-l", "5": "index-l", "r": "index-l", "t": "index-l",
+  "f": "index-l", "g": "index-l", "v": "index-l", "b": "index-l",
+  // 오른손 검지
+  "6": "index-r", "7": "index-r", "y": "index-r", "u": "index-r",
+  "h": "index-r", "j": "index-r", "n": "index-r", "m": "index-r",
+  // 오른손 중지
+  "8": "middle-r", "i": "middle-r", "k": "middle-r", ",": "middle-r",
+  // 오른손 약지
+  "9": "ring-r", "o": "ring-r", "l": "ring-r", ".": "ring-r",
+  // 오른손 새끼
+  "0": "pinky-r", "-": "pinky-r", "=": "pinky-r", "p": "pinky-r",
+  "[": "pinky-r", "]": "pinky-r", "\\": "pinky-r", ";": "pinky-r",
+  "'": "pinky-r", "/": "pinky-r",
+};
+
+const FINGER_COLORS: Record<FingerType, { bg: string; border: string; text: string }> = {
+  "pinky-l": { bg: "bg-pink-500/30", border: "border-pink-400", text: "text-pink-300" },
+  "ring-l": { bg: "bg-orange-500/30", border: "border-orange-400", text: "text-orange-300" },
+  "middle-l": { bg: "bg-green-500/30", border: "border-green-400", text: "text-green-300" },
+  "index-l": { bg: "bg-blue-500/30", border: "border-blue-400", text: "text-blue-300" },
+  "index-r": { bg: "bg-purple-500/30", border: "border-purple-400", text: "text-purple-300" },
+  "middle-r": { bg: "bg-green-500/30", border: "border-green-400", text: "text-green-300" },
+  "ring-r": { bg: "bg-orange-500/30", border: "border-orange-400", text: "text-orange-300" },
+  "pinky-r": { bg: "bg-pink-500/30", border: "border-pink-400", text: "text-pink-300" },
+};
+
+const FINGER_NAMES: Record<FingerType, string> = {
+  "pinky-l": "왼손 새끼",
+  "ring-l": "왼손 약지",
+  "middle-l": "왼손 중지",
+  "index-l": "왼손 검지",
+  "index-r": "오른손 검지",
+  "middle-r": "오른손 중지",
+  "ring-r": "오른손 약지",
+  "pinky-r": "오른손 새끼",
+};
+
+// 키보드 가이드 컴포넌트
+function KeyboardGuide({ nextChar }: { nextChar: string }) {
+  const lowerNextChar = nextChar.toLowerCase();
+  const finger = KEY_TO_FINGER[lowerNextChar];
+  const fingerColor = finger ? FINGER_COLORS[finger] : null;
+  const fingerName = finger ? FINGER_NAMES[finger] : null;
+
+  return (
+    <div className="mt-6">
+      {/* 손가락 안내 */}
+      {finger && fingerName && fingerColor && (
+        <div className={`mb-4 text-center py-2 px-4 rounded-lg ${fingerColor.bg} border ${fingerColor.border}`}>
+          <span className={`text-sm font-medium ${fingerColor.text}`}>
+            다음 키: <span className="font-mono font-bold text-lg">{nextChar}</span> → {fingerName}
+          </span>
+        </div>
+      )}
+
+      {/* 키보드 레이아웃 */}
+      <div className="bg-slate-800 rounded-xl p-4 border border-slate-600">
+        {KEYBOARD_ROWS.map((row, rowIndex) => (
+          <div
+            key={rowIndex}
+            className="flex justify-center gap-1 mb-1"
+            style={{ marginLeft: rowIndex === 1 ? "12px" : rowIndex === 2 ? "24px" : rowIndex === 3 ? "36px" : "0" }}
+          >
+            {row.map((key) => {
+              const keyFinger = KEY_TO_FINGER[key];
+              const isActive = key === lowerNextChar;
+              const keyFingerColor = keyFinger ? FINGER_COLORS[keyFinger] : null;
+
+              return (
+                <div
+                  key={key}
+                  className={`
+                    w-8 h-8 flex items-center justify-center rounded text-xs font-mono transition-all duration-150
+                    ${isActive
+                      ? `${keyFingerColor?.bg} ${keyFingerColor?.border} border-2 scale-125 shadow-lg ${keyFingerColor?.text} font-bold`
+                      : `bg-slate-700 border border-slate-600 text-slate-400 hover:bg-slate-600`
+                    }
+                  `}
+                >
+                  {key === " " ? "␣" : key}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+        {/* 스페이스바 */}
+        <div className="flex justify-center mt-1">
+          <div className="w-48 h-8 flex items-center justify-center rounded bg-slate-700 border border-slate-600 text-slate-400 text-xs font-mono">
+            Space
+          </div>
+        </div>
+      </div>
+
+      {/* 손가락 색상 범례 */}
+      <div className="mt-3 flex flex-wrap justify-center gap-2 text-xs">
+        <div className="flex items-center gap-1">
+          <div className="w-3 h-3 rounded bg-pink-500/50 border border-pink-400"></div>
+          <span className="text-slate-400">새끼</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="w-3 h-3 rounded bg-orange-500/50 border border-orange-400"></div>
+          <span className="text-slate-400">약지</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="w-3 h-3 rounded bg-green-500/50 border border-green-400"></div>
+          <span className="text-slate-400">중지</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="w-3 h-3 rounded bg-blue-500/50 border border-blue-400"></div>
+          <span className="text-slate-400">검지(좌)</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="w-3 h-3 rounded bg-purple-500/50 border border-purple-400"></div>
+          <span className="text-slate-400">검지(우)</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const SPARTA_WORDS = [
   "remote",
   "origin",
@@ -583,12 +722,32 @@ export default function Home() {
             <div className="text-center mb-8">
               <div
                 className={`text-6xl md:text-7xl font-mono font-bold tracking-wider transition-all duration-200 ${
-                  isCorrect === true
-                    ? "text-green-400 scale-105"
-                    : "text-white"
+                  isCorrect === true ? "scale-105" : ""
                 }`}
               >
-                {currentWord}
+                {currentWord.split("").map((char, idx) => {
+                  const isTyped = idx < input.length;
+                  const isNext = idx === input.length;
+                  const nextFinger = KEY_TO_FINGER[char.toLowerCase()];
+                  const nextColor = nextFinger ? FINGER_COLORS[nextFinger] : null;
+
+                  return (
+                    <span
+                      key={idx}
+                      className={`transition-all duration-150 ${
+                        isCorrect === true
+                          ? "text-green-400"
+                          : isTyped
+                          ? "text-green-400"
+                          : isNext && nextColor
+                          ? `${nextColor.text} underline decoration-2 underline-offset-4`
+                          : "text-slate-400"
+                      }`}
+                    >
+                      {char}
+                    </span>
+                  );
+                })}
               </div>
             </div>
 
@@ -612,9 +771,8 @@ export default function Home() {
               />
             </div>
 
-            <p className="mt-6 text-center text-slate-500 text-sm">
-              시간 제한 없이 자유롭게 연습하세요
-            </p>
+            {/* 손가락 가이드 */}
+            <KeyboardGuide nextChar={currentWord[input.length] || ""} />
           </div>
         </div>
       </main>
