@@ -158,7 +158,7 @@ const SPARTA_WORDS = [
 ];
 
 type GamePhase = "start" | "playing" | "result";
-type ClassType = "core" | "advanced";
+type ClassType = "core" | "intermediate" | "advanced";
 type GameMode = "sparta" | "dev";
 
 const GITHUB_URL = "https://github.com/ezzooooo/sparta-word-typing";
@@ -196,7 +196,7 @@ export default function Home() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const isTransitioningRef = useRef(false);
 
-  const timeLimit = classType === "core" ? 4000 : 2000;
+  const timeLimit = classType === "core" ? 4000 : classType === "intermediate" ? 3000 : 2000;
   const currentWord = words[currentIndex] || "";
 
   const clearTimer = () => {
@@ -466,7 +466,7 @@ export default function Home() {
                   <label className="block text-sm font-medium text-slate-300 mb-2">
                     반 선택
                   </label>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                     <button
                       onClick={() => setClassType("core")}
                       className={`py-3 px-4 rounded-lg font-medium transition-all ${
@@ -476,6 +476,16 @@ export default function Home() {
                       }`}
                     >
                       Core (4초)
+                    </button>
+                    <button
+                      onClick={() => setClassType("intermediate")}
+                      className={`py-3 px-4 rounded-lg font-medium transition-all ${
+                        classType === "intermediate"
+                          ? "bg-teal-600 text-white ring-2 ring-teal-400"
+                          : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+                      }`}
+                    >
+                      중급 (3초)
                     </button>
                     <button
                       onClick={() => setClassType("advanced")}
@@ -566,10 +576,12 @@ export default function Home() {
               className={`px-3 py-1 rounded-full text-sm ${
                 classType === "core"
                   ? "bg-blue-600/20 text-blue-400"
+                  : classType === "intermediate"
+                  ? "bg-teal-600/20 text-teal-400"
                   : "bg-purple-600/20 text-purple-400"
               }`}
             >
-              {classType === "core" ? "Core" : "Advanced"}
+              {classType === "core" ? "Core" : classType === "intermediate" ? "중급" : "Advanced"}
             </span>
           </div>
 
@@ -803,10 +815,12 @@ export default function Home() {
             className={`inline-block px-4 py-2 rounded-full text-sm font-medium ${
               classType === "core"
                 ? "bg-blue-600/20 text-blue-400"
+                : classType === "intermediate"
+                ? "bg-teal-600/20 text-teal-400"
                 : "bg-purple-600/20 text-purple-400"
             }`}
           >
-            {classType === "core" ? "Core (4초)" : "Advanced (2초)"}
+            {classType === "core" ? "Core (4초)" : classType === "intermediate" ? "중급 (3초)" : "Advanced (2초)"}
           </span>
           {completedAt && (
             <div className="text-slate-400 text-sm">
